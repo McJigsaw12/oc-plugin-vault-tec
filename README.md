@@ -23,12 +23,6 @@ Install this fork directly from GitHub:
 opencode plugin add github:McJigsaw12/oc-plugin-vault-tec
 ```
 
-Or from OpenCode:
-
-1. Press `Ctrl+P`
-2. Select `Install Plugin`
-3. Enter `github:McJigsaw12/oc-plugin-vault-tec`
-
 Restart OpenCode. On startup the plugin:
 
 1. Copies `vault-tec.json` to `$XDG_CONFIG_HOME/opencode/themes/vault-tec.json` (or `~/.config/opencode/themes/vault-tec.json`).
