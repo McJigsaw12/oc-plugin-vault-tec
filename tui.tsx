@@ -3,7 +3,6 @@
 import { readFile, unlink, writeFile } from "node:fs/promises"
 import { homedir } from "node:os"
 import path from "node:path"
-import { For, Show, createMemo } from "solid-js"
 
 const id = "vault-tec"
 
@@ -12,9 +11,9 @@ const configDirectory = () => {
   return path.join(base, "opencode")
 }
 
-// The server plugin writes cli.json before the TUI starts, but the CLI may have
-// already loaded the old configuration. Touching the config directory after the
-// TUI's watcher is active makes the first launch adopt the theme as well.
+// The server writes cli.json before the TUI starts, but the CLI may already have
+// loaded the old config. Touching the config directory after the TUI's watcher
+// is active makes the first launch adopt the theme too.
 const reloadTheme = async (ctx) => {
   if (ctx.options.reload_theme === false) return
   const name =
@@ -71,82 +70,64 @@ const formatCaps = (value) => {
   return `$${value.toFixed(4)}`
 }
 
-function VaultTecSidebar(props) {
-  const ctx = props.ctx
-  const messages = createMemo(() => ctx.data.session.message.list(props.sessionID))
-  const session = createMemo(() => ctx.data.session.get(props.sessionID))
-  const cost = createMemo(() => ctx.data.session.cost(props.sessionID))
-  const models = createMemo(() => ctx.data.location.model.list(session()?.location))
+const computeStats = (ctx, sessionID) => {
+  const messages = ctx.data.session.message.list(sessionID)
+  const session = ctx.data.session.get(sessionID)
+  const cost = ctx.data.session.cost(sessionID)
+  const models = ctx.data.location.model.list(session?.location)
+  const boundary = session?.revert?.messageID
+  const boundaryIndex = boundary ? messages.findIndex((message) => message.id === boundary) : -1
+  if (boundary && boundaryIndex === -1) return { cost }
+  const end = boundaryIndex === -1 ? messages.length : boundaryIndex
+  const compactionIndex = messages.findLastIndex(
+    (message, index) => message.type === "compaction" && message.status === "completed" && index < end,
+  )
+  const last = messages.findLast(
+    (message, index) =>
+      message.type === "assistant" && message.tokens !== undefined && index > compactionIndex && index < end,
+  )
+  if (!last) return { cost }
+  const tokens =
+    last.tokens.input + last.tokens.output + last.tokens.reasoning + last.tokens.cache.read + last.tokens.cache.write
+  const model = models?.find((item) => item.providerID === last.model.providerID && item.id === last.model.id)
+  return {
+    cost,
+    last,
+    model,
+    usage:
+      tokens > 0
+        ? {
+            tokens,
+            percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : undefined,
+          }
+        : undefined,
+  }
+}
 
-  const last = createMemo(() => {
-    const list = messages()
-    const boundary = session()?.revert?.messageID
-    const boundaryIndex = boundary ? list.findIndex((message) => message.id === boundary) : -1
-    if (boundary && boundaryIndex === -1) return
-    const end = boundaryIndex === -1 ? list.length : boundaryIndex
-    const compactionIndex = list.findLastIndex(
-      (message, index) => message.type === "compaction" && message.status === "completed" && index < end,
-    )
-    return list.findLast(
-      (message, index) => message.type === "assistant" && message.tokens !== undefined && index > compactionIndex && index < end,
-    )
-  })
-
-  const usage = createMemo(() => {
-    const current = last()
-    if (!current) return
-    const tokens =
-      current.tokens.input +
-      current.tokens.output +
-      current.tokens.reasoning +
-      current.tokens.cache.read +
-      current.tokens.cache.write
-    if (tokens <= 0) return
-    const model = models()?.find(
-      (item) => item.providerID === current.model.providerID && item.id === current.model.id,
-    )
-    return {
-      tokens,
-      percent: model?.limit.context ? Math.round((tokens / model.limit.context) * 100) : undefined,
-    }
-  })
-
-  const model = createMemo(() => {
-    const current = last()
-    if (!current) return
-    return models()?.find(
-      (item) => item.providerID === current.model.providerID && item.id === current.model.id,
-    )
-  })
-
-  const contextRatio = createMemo(() => {
-    const limit = model()?.limit.context
-    if (!limit) return 0
-    return Math.min(1, (usage()?.tokens ?? 0) / limit)
-  })
-  const outputRatio = createMemo(() => {
-    const limit = model()?.limit.output
-    if (!limit) return 0
-    return Math.min(1, (last()?.tokens.output ?? 0) / limit)
-  })
-  const cacheRatio = createMemo(() => {
-    const tokens = usage()?.tokens ?? 0
-    if (tokens <= 0) return 0
-    return Math.min(1, (last()?.tokens.cache.read ?? 0) / tokens)
-  })
-
-  const contextColor = createMemo(() => {
-    const ratio = contextRatio()
-    if (ratio > 0.9) return ctx.theme.text.feedback.error.base
-    if (ratio > 0.7) return ctx.theme.text.feedback.warning.base
-    return ctx.theme.text.action.primary.base
-  })
-  const contextPercent = createMemo(() => {
-    const percent = usage()?.percent
-    return percent === undefined ? "—" : `${percent}%`
-  })
-  const outputPercent = createMemo(() => `${Math.round(outputRatio() * 100)}%`)
-  const cachePercent = createMemo(() => `${Math.round(cacheRatio() * 100)}%`)
+// This function is called by the host's reactive createComponent. Reading the
+// host store here (instead of in a plugin-local memo) keeps the sidebar live:
+// the host tracks the reads and re-runs the render when session data changes.
+const sidebar = (ctx, sessionID) => {
+  const stats = computeStats(ctx, sessionID)
+  const last = stats.last
+  const model = stats.model
+  const usage = stats.usage
+  const cost = stats.cost ?? 0
+  const contextLimit = model?.limit.context
+  const outputLimit = model?.limit.output
+  const contextRatio = contextLimit ? Math.min(1, (usage?.tokens ?? 0) / contextLimit) : 0
+  const outputRatio = outputLimit ? Math.min(1, (last?.tokens.output ?? 0) / outputLimit) : 0
+  const tokens = usage?.tokens ?? 0
+  const cacheRatio = tokens > 0 ? Math.min(1, (last?.tokens.cache.read ?? 0) / tokens) : 0
+  const contextColor =
+    contextRatio > 0.9
+      ? ctx.theme.text.feedback.error.base
+      : contextRatio > 0.7
+        ? ctx.theme.text.feedback.warning.base
+        : ctx.theme.text.action.primary.base
+  const contextPercent = usage?.percent === undefined ? "—" : `${usage.percent}%`
+  const outputPercent = `${Math.round(outputRatio * 100)}%`
+  const cachePercent = `${Math.round(cacheRatio * 100)}%`
 
   return (
     <box flexDirection="column" gap={1}>
@@ -154,50 +135,52 @@ function VaultTecSidebar(props) {
         <b>VAULT-TEC INDUSTRIES</b>
       </text>
       <box alignItems="center">
-        <For each={side}>
-          {(line) => (
-            <text fg={ctx.theme.text.muted} selectable={false}>
-              {line}
-            </text>
-          )}
-        </For>
+        {side.map((line) => (
+          <text fg={ctx.theme.text.muted} selectable={false}>
+            {line}
+          </text>
+        ))}
       </box>
-      <Show when={usage() || cost() > 0}>
+      {usage || cost > 0 ? (
         <box width="100%" flexDirection="column">
           <text fg={ctx.theme.text.action.primary.base}>
             <b>PIP-BOY 3000 MKIV</b>
           </text>
-          <Show when={model()?.limit.context}>
-            <text>
-              <span style={{ fg: ctx.theme.text.muted }}>CTX </span>
-              <span style={{ fg: contextColor() }}>[{bar(contextRatio(), 14)}]</span>
-              <span style={{ fg: ctx.theme.text.base }}> {contextPercent()}</span>
-            </text>
-            <text fg={ctx.theme.text.muted}>
-              {format(usage()?.tokens ?? 0)} / {format(model()?.limit.context ?? 0)} tokens
-            </text>
-          </Show>
-          <Show when={model()?.limit.output}>
-            <text>
-              <span style={{ fg: ctx.theme.text.muted }}>OUT </span>
-              <span style={{ fg: ctx.theme.text.action.primary.base }}>[{bar(outputRatio(), 14)}]</span>
-              <span style={{ fg: ctx.theme.text.base }}> {outputPercent()}</span>
-            </text>
-            <text fg={ctx.theme.text.muted}>
-              {format(last()?.tokens.output ?? 0)} / {format(model()?.limit.output ?? 0)} tokens
-            </text>
-          </Show>
+          {contextLimit ? (
+            <box flexDirection="column">
+              <text>
+                <span style={{ fg: ctx.theme.text.muted }}>CTX </span>
+                <span style={{ fg: contextColor }}>[{bar(contextRatio, 14)}]</span>
+                <span style={{ fg: ctx.theme.text.base }}> {contextPercent}</span>
+              </text>
+              <text fg={ctx.theme.text.muted}>
+                {format(usage?.tokens ?? 0)} / {format(contextLimit)} tokens
+              </text>
+            </box>
+          ) : null}
+          {outputLimit ? (
+            <box flexDirection="column">
+              <text>
+                <span style={{ fg: ctx.theme.text.muted }}>OUT </span>
+                <span style={{ fg: ctx.theme.text.action.primary.base }}>[{bar(outputRatio, 14)}]</span>
+                <span style={{ fg: ctx.theme.text.base }}> {outputPercent}</span>
+              </text>
+              <text fg={ctx.theme.text.muted}>
+                {format(last?.tokens.output ?? 0)} / {format(outputLimit)} tokens
+              </text>
+            </box>
+          ) : null}
           <text>
             <span style={{ fg: ctx.theme.text.muted }}>CSH </span>
-            <span style={{ fg: ctx.theme.text.feedback.success.base }}>[{bar(cacheRatio(), 14)}]</span>
-            <span style={{ fg: ctx.theme.text.base }}> {cachePercent()}</span>
+            <span style={{ fg: ctx.theme.text.feedback.success.base }}>[{bar(cacheRatio, 14)}]</span>
+            <span style={{ fg: ctx.theme.text.base }}> {cachePercent}</span>
           </text>
           <text>
             <span style={{ fg: ctx.theme.text.muted }}>CAPS </span>
-            <span style={{ fg: ctx.theme.text.feedback.warning.base }}>{formatCaps(cost() ?? 0)}</span>
+            <span style={{ fg: ctx.theme.text.feedback.warning.base }}>{formatCaps(cost)}</span>
           </text>
         </box>
-      </Show>
+      ) : null}
     </box>
   )
 }
@@ -210,7 +193,7 @@ const plugin = {
     if (ctx.options.sidebar === false) return
     const dispose = ctx.ui.slot({
       append: "sidebar.content",
-      render: (input) => <VaultTecSidebar ctx={ctx} sessionID={input.sessionID} />,
+      render: (input) => sidebar(ctx, input.sessionID),
     })
     return () => dispose()
   },
