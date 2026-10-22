@@ -23,6 +23,8 @@ Install this fork directly from GitHub:
 opencode plugin add github:McJigsaw12/oc-plugin-vault-tec
 ```
 
+> If the command prints `Plugin ... installed` but exits with code 2 in a managed-service setup, the plugin was still written to `opencode.json`. Restart OpenCode to load it.
+
 Restart OpenCode. On startup the plugin:
 
 1. Copies `vault-tec.json` to `$XDG_CONFIG_HOME/opencode/themes/vault-tec.json` (or `~/.config/opencode/themes/vault-tec.json`).
