@@ -20,7 +20,7 @@ _The screenshot comes from the upstream V1 plugin. This port keeps the theme, th
 Install this fork directly from GitHub:
 
 ```bash
-opencode plugin github:McJigsaw12/oc-plugin-vault-tec
+opencode plugin add github:McJigsaw12/oc-plugin-vault-tec
 ```
 
 Or from OpenCode:
@@ -39,7 +39,7 @@ The TUI plugin also nudges the V2 config watcher after startup so the theme can 
 
 ## Options
 
-Plugin options can be configured in `opencode.json` (server) and `cli.json` (TUI), or through the plugin entry in `opencode.json`.
+Plugin options can be configured through the plugin entry in `opencode.json`. `cli.json` only holds the selected theme and mode.
 
 ### Server
 
