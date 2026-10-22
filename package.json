@@ -1,15 +1,30 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "oc-plugin-vault-tec",
-  "version": "0.3.0",
+  "name": "oc-plugin-vault-tec-mcjigsaw",
+  "version": "0.4.0",
+  "description": "Vault-Tec theme and TUI plugin for OpenCode V2 (fork of kommander/oc-plugin-vault-tec).",
   "type": "module",
+  "keywords": [
+    "opencode",
+    "opencode-v2",
+    "vault-tec",
+    "fallout",
+    "tui",
+    "plugin",
+    "theme",
+    "terminal"
+  ],
   "scripts": {
     "fmt": "oxfmt --write .",
     "fmt:check": "oxfmt --check ."
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kommander/oc-plugin-vault-tec.git"
+    "url": "git+https://github.com/McJigsaw12/oc-plugin-vault-tec.git"
+  },
+  "homepage": "https://github.com/McJigsaw12/oc-plugin-vault-tec#readme",
+  "bugs": {
+    "url": "https://github.com/McJigsaw12/oc-plugin-vault-tec/issues"
   },
   "exports": {
     "./server": {
@@ -33,7 +48,7 @@
     }
   },
   "engines": {
-    "opencode": ">=1.14.48"
+    "opencode": ">=2.0.0"
   },
   "devDependencies": {
     "oxfmt": "0.41.0"
