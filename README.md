@@ -10,9 +10,10 @@ _The screenshot comes from the upstream V1 plugin. This port keeps the theme, th
 
 ## Compatibility
 
-- **OpenCode V2** (tested with `v2.1.3`).
-- Installable on any OpenCode V2 installation.
-- No custom OpenCode build or fork required.
+- **OpenCode V2 TUI** (tested with `v2.1.3`): theme, personality prompt and Pip-Boy sidebar.
+- **OpenCode Desktop**: the server-side personality prompt applies, but Desktop uses its own theme system and does not load TUI themes or TUI slots.
+- Installable on any OpenCode V2 installation; the theme and sidebar require the terminal client.
+- No custom OpenCode build or fork required for the TUI.
 - The theme file is the original V1 theme document; OpenCode V2 migrates it automatically.
 
 ## Installation
