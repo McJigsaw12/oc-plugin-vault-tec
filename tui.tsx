@@ -1,8 +1,41 @@
 // @ts-nocheck
 /** @jsxImportSource @opentui/solid */
+import { readFile, unlink, writeFile } from "node:fs/promises"
+import { homedir } from "node:os"
+import path from "node:path"
 import { For, Show, createMemo } from "solid-js"
 
 const id = "vault-tec"
+
+const configDirectory = () => {
+  const base = process.env.XDG_CONFIG_HOME?.trim() || path.join(homedir(), ".config")
+  return path.join(base, "opencode")
+}
+
+// The server plugin writes cli.json before the TUI starts, but the CLI may have
+// already loaded the old configuration. Touching the config directory after the
+// TUI's watcher is active makes the first launch adopt the theme as well.
+const reloadTheme = async (ctx) => {
+  if (ctx.options.reload_theme === false) return
+  const name =
+    typeof ctx.options.theme === "string" && ctx.options.theme.trim() ? ctx.options.theme.trim() : "vault-tec"
+  const dir = configDirectory()
+  const raw = await readFile(path.join(dir, "cli.json"), "utf8").catch(() => "")
+  if (!raw) return
+  let data
+  try {
+    data = JSON.parse(raw)
+  } catch {
+    return
+  }
+  const current = data?.theme
+  const selected = typeof current === "string" ? current : current?.name
+  if (selected !== name) return
+  const marker = path.join(dir, ".vault-tec-reload")
+  await writeFile(marker, String(Date.now())).catch(() => undefined)
+  await new Promise((resolve) => setTimeout(resolve, 10))
+  await unlink(marker).catch(() => undefined)
+}
 
 const side = [
   "⠀⠀⠀⠀⠀⠀⠀⠀⣤⣤⡀⠀⠀⠀⠀⠀⠀⠀⠀",
@@ -171,7 +204,8 @@ function VaultTecSidebar(props) {
 
 const plugin = {
   id,
-  setup: (ctx) => {
+  setup: async (ctx) => {
+    await reloadTheme(ctx)
     if (ctx.options.enabled === false) return
     if (ctx.options.sidebar === false) return
     const dispose = ctx.ui.slot({

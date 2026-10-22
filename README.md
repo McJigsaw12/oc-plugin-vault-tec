@@ -35,7 +35,7 @@ Restart OpenCode. On startup the plugin:
 2. Sets `"theme": { "name": "vault-tec" }` in `cli.json` **only when no theme name is already configured**.
 3. Registers the Vault-Tec system prompt and the Pip-Boy sidebar.
 
-If you already chose another theme, the plugin leaves your choice alone. Select `vault-tec` manually from the theme list if needed.
+The TUI plugin also nudges the V2 config watcher after startup so the theme can apply on the first launch. If your terminal still shows the old theme, restart OpenCode or select `vault-tec` from the theme list. If you already chose another theme, the plugin leaves your choice alone.
 
 ## Options
 
@@ -54,8 +54,10 @@ Plugin options can be configured in `opencode.json` (server) and `cli.json` (TUI
 
 ### TUI
 
-- `enabled` (`boolean`, default `true`) — disables the Pip-Boy sidebar contribution.
+- `enabled` (`boolean`, default `true`) — disables the Pip-Boy sidebar contribution. The theme reload nudge still runs.
 - `sidebar` (`boolean`, default `true`) — show the Vault Boy art and Pip-Boy context/cost readouts.
+- `theme` (`string`, default `"vault-tec"`) — theme name to check in `cli.json`; keep it in sync with the server `theme` option.
+- `reload_theme` (`boolean`, default `true`) — after startup, touch a marker file in the config directory so the V2 config watcher applies the theme on the first launch.
 
 ## Manual theme installation
 

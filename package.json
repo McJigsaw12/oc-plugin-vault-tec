@@ -43,7 +43,9 @@
       "import": "./tui.tsx",
       "config": {
         "enabled": true,
-        "sidebar": true
+        "sidebar": true,
+        "theme": "vault-tec",
+        "reload_theme": true
       }
     }
   },
