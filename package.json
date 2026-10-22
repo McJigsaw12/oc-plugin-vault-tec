@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "oc-plugin-vault-tec-mcjigsaw",
   "version": "0.4.0",
-  "description": "Vault-Tec theme and TUI plugin for OpenCode V2 (fork of kommander/oc-plugin-vault-tec).",
+  "description": "Vault-Tec theme, personality and Pip-Boy sidebar for OpenCode V2 (fork of kommander/oc-plugin-vault-tec).",
   "type": "module",
   "keywords": [
     "opencode",
@@ -31,19 +31,19 @@
       "import": "./server.ts",
       "config": {
         "enabled": true,
-        "mode": "append"
+        "mode": "append",
+        "install_theme": true,
+        "set_theme": true,
+        "theme": "vault-tec",
+        "theme_mode": "dark",
+        "overwrite_theme": true
       }
     },
     "./tui": {
       "import": "./tui.tsx",
       "config": {
         "enabled": true,
-        "set_theme": true,
-        "scanlines": true,
-        "scanline_speed": 0.012,
-        "vignette": 0.75,
-        "sidebar": true,
-        "tips": true
+        "sidebar": true
       }
     }
   },
@@ -54,7 +54,6 @@
     "oxfmt": "0.41.0"
   },
   "peerDependencies": {
-    "@opencode-ai/plugin": "*",
     "@opentui/core": "*",
     "@opentui/solid": "*",
     "solid-js": "*"
